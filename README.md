@@ -1,2 +1,4 @@
-# task-api
-FastAPI task manager
+Учебный репозиторий: Git + FastAPI.
+
+**Автор**: Gleb
+**Начало работы**: 2026-07-18
