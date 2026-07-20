@@ -41,7 +41,9 @@ async def create_task(payload: TaskCreate):
     return task 
 
 @app.get("/tasks", response_model=list[Task])
-async def list_tasks():
+async def list_tasks(done_only: bool = False):
+    if done_only:
+        return list(v for v in tasks.values() if v.done==True)
     return list(tasks.values())
 
 @app.get("/tasks/{task_id}", response_model=Task)
