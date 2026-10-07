@@ -1,34 +1,20 @@
 name: Deploy
 
-"on":
-  push:
-    branches:
-      - main
-
-env:
-  IMAGE: "ghcr.io/${{ github.repository_owner }}/task-api"
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    if: github.event.workflow_run.conclusion == 'success'
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Log in to GHCR
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GHCR_TOKEN }}
-
-      - name: Build and push image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          push: true
-          tags: |
-            ${{ env.IMAGE }}:${{ github.sha }}
-            ${{ env.IMAGE }}:latest
+      - name: Prepare image name
+        run: |
+          OWNER_LOWER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          echo "IMAGE=ghcr.io/$OWNER_LOWER/task-api" >> $GITHUB_ENV
 
       - name: Deploy to server
         uses: appleboy/ssh-action@v1.0.3
@@ -38,12 +24,26 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
             docker pull ${{ env.IMAGE }}:latest
+
             docker rm -f task-api 2>/dev/null || true
+
+            # поднимаем новый в фоне
             docker run -d \
               --name task-api \
               --restart unless-stopped \
-              -p 127.0.0.1:8000:8000 \
+              -p 80:8000 \
               -e LOG_LEVEL=INFO \
               ${{ env.IMAGE }}:latest
+
+            sleep 5
+            if [ -n "$(docker ps -q -f name=task-api -f status=running)" ]; then
+              docker image prune -f
+            else
+              echo "Контейнер не поднялся"
+              docker logs --tail 50 task-api
+              exit 1
+            fi
+
             docker logout ghcr.io
