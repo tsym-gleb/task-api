@@ -17,7 +17,6 @@ def test_predict_happy_path(client):
     assert set(body["probabilities"].keys()) == {"class_0", "class_1", "class_2"}
     assert abs(sum(body["probabilities"].values()) - 1.0) < 0.001
 
-
 def test_predict_negative_alcohol_returns_422(client):
     payload = {**VALID_PAYLOAD, "alcohol": -5.0}
     response = client.post("/predict", json=payload)

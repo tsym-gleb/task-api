@@ -89,7 +89,6 @@ def predict(req: PredictRequest, request: Request) -> PredictResponse:
         probabilities={CLASS_NAMES[i]: float(round(p, 4)) for i, p in enumerate(proba)},
     )
 
-
 _model = joblib.load(MODEL_PATH)
 demo = _build_gradio_demo(_model)
 app = gr.mount_gradio_app(app, demo, path="/")
